@@ -1,0 +1,55 @@
+---
+- name: update instances
+  hosts: gklinux
+  # hosts: noncompliant
+  gather_facts: true
+  become: true
+  vars:
+    - region: eu-west-2
+
+  tasks:
+      #     - name: Print distro
+      #       debug:
+      #           msg: "{{ ansible_distribution }}"
+
+      #     - name: disable subscription
+      #       lineinfile:
+      #         path: /etc/yum/pluginconf.d/subscription-manager.conf
+      #         regexp: "^enabled=1"
+      #         line: "enabled=0"
+      #       when: ansible_distribution == "RedHat"
+
+    - name: install requirements
+      zypper:
+          name: python-xml
+      when: ansible_distribution == "SLES"
+
+    - name: disable subscription
+      copy:
+          content: |
+              [main]
+              enabled=0
+          dest: /etc/yum/pluginconf.d/subscription-manager.conf
+      when: ansible_distribution == "RedHat"
+
+    - name: update security packages
+      yum:
+        update_cache: yes
+        name: '*'
+        state: latest
+        security: yes
+      when: ansible_distribution != "SLES"
+
+    - name: update security packages
+      zypper:
+        update_cache: yes
+        name: '*'
+        state: latest
+      when: ansible_distribution == "SLES"
+
+    - name: update packages
+      yum:
+        update_cache: yes
+        name: '*'
+        state: latest
+      when: ansible_distribution != "SLES"
