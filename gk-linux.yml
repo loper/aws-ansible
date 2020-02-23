@@ -1,0 +1,16 @@
+---
+- name: start all GK instances
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+      - region: eu-west-2
+  tasks:
+      - name: get GK Linux instance IDs
+        shell: "AWS_DEFAULT_REGION={{ region }} aws ec2 describe-instances --filters Name=tag:Name,Values=\"*GK*Linux*\" --output text --query 'Reservations[].Instances[].[PrivateIpAddress]' | uniq"
+        register: instancesaddr
+        tags:
+            - update
+
+      - name: show instances
+        debug: msg="{{ instancesaddr.stdout_lines }}" # "
