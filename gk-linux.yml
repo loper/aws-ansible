@@ -6,7 +6,7 @@
   vars:
       - region: eu-west-2
   tasks:
-      - name: get GK Linux instance IDs
+      - name: get GK Linux instance IPs
         shell: "AWS_DEFAULT_REGION={{ region }} aws ec2 describe-instances --filters Name=tag:Name,Values=\"*GK*Linux*\" --output text --query 'Reservations[].Instances[].[PrivateIpAddress]' | uniq"
         register: instancesaddr
         tags:
@@ -14,3 +14,39 @@
 
       - name: show instances
         debug: msg="{{ instancesaddr.stdout_lines }}" # "
+
+      - name: Add found hosts
+        add_host:
+            name: '{{ item }}'
+            groups: gklinux
+            ansible_user: ec2-user
+            ansible_ssh_private_key_file: ~/.ssh/GKRP.pem
+            ansible_network_os: Linux
+        with_items: '{{ instancesaddr.stdout_lines }}'
+        tags:
+            - update
+
+      - name: get GK Linux instance IDs
+        shell: "AWS_DEFAULT_REGION={{ region }} aws ec2 describe-instances --filters Name=tag:Name,Values=\"*GK*Linux*\" --output text --query 'Reservations[].Instances[].[InstanceId]' | uniq"
+        register: instances
+        # delegate_to: localhost
+
+      - name: Launch instances
+        ec2:
+            state: 'running'
+            instance_ids: '{{ instances.stdout_lines }}'
+            region: '{{ region }}'
+        tags:
+            - launch
+
+      - name: Wait for hosts to be up
+        pause:
+            minutes: 3
+        tags:
+            - launch
+
+- name: import updater playbook
+  import_playbook: linux_update.yml
+  tags:
+      - update
+
